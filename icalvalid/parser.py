@@ -1,0 +1,180 @@
+"""Parse iCalendar (RFC 5545) text into a validated component tree.
+
+The parser is deliberately literal: property values are kept in their
+wire form (still backslash-escaped) rather than decoded, because the
+correct decoding depends on the value's data type (TEXT, DATE-TIME, ...)
+which this module does not yet track. See printer.unescape_text for
+decoding TEXT values on demand.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+class ICalError(Exception):
+    """Base class for problems found while parsing or validating."""
+
+
+class ParseError(ICalError):
+    """The input is not well-formed iCalendar syntax."""
+
+
+class ValidationError(ICalError):
+    """The input parses but violates a structural rule of RFC 5545."""
+
+
+@dataclass
+class ContentLine:
+    name: str
+    params: dict[str, list[str]]
+    value: str
+
+
+@dataclass
+class Component:
+    name: str
+    properties: list[ContentLine] = field(default_factory=list)
+    children: list["Component"] = field(default_factory=list)
+
+    def get(self, name: str) -> str | None:
+        """Return the value of the first property with this name, if any."""
+        name = name.upper()
+        for prop in self.properties:
+            if prop.name == name:
+                return prop.value
+        return None
+
+    def get_all(self, name: str) -> list[str]:
+        name = name.upper()
+        return [p.value for p in self.properties if p.name == name]
+
+
+def unfold(text: str) -> list[str]:
+    """Reverse RFC 5545 line folding, returning one string per content line.
+
+    A folded continuation line starts with a space or tab; that single
+    character is the fold marker and is stripped, not part of the value.
+    """
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    raw = normalized.split("\n")
+    lines: list[str] = []
+    for segment in raw:
+        if segment.startswith(" ") or segment.startswith("\t"):
+            if not lines:
+                raise ParseError("content starts with a continuation line")
+            lines[-1] += segment[1:]
+        else:
+            lines.append(segment)
+    return lines
+
+
+def parse_content_line(raw: str, lineno: int) -> ContentLine:
+    """Split one unfolded line into name, parameters, and raw value."""
+    n = len(raw)
+    i = 0
+    while i < n and raw[i] not in ";:":
+        i += 1
+    if i == 0:
+        raise ParseError(f"line {lineno}: empty property name in {raw!r}")
+    name = raw[:i].upper()
+
+    params: dict[str, list[str]] = {}
+    while i < n and raw[i] == ";":
+        i += 1
+        pname_start = i
+        while i < n and raw[i] != "=":
+            i += 1
+        if i >= n:
+            raise ParseError(f"line {lineno}: malformed parameter in {raw!r}")
+        pname = raw[pname_start:i].upper()
+        i += 1
+
+        values: list[str] = []
+        while True:
+            if i < n and raw[i] == '"':
+                i += 1
+                val_start = i
+                while i < n and raw[i] != '"':
+                    i += 1
+                if i >= n:
+                    raise ParseError(
+                        f"line {lineno}: unterminated quoted parameter value in {raw!r}"
+                    )
+                values.append(raw[val_start:i])
+                i += 1
+            else:
+                val_start = i
+                while i < n and raw[i] not in ",;:":
+                    i += 1
+                values.append(raw[val_start:i])
+            if i < n and raw[i] == ",":
+                i += 1
+                continue
+            break
+        params[pname] = values
+
+    if i >= n or raw[i] != ":":
+        raise ParseError(f"line {lineno}: expected ':' after parameters in {raw!r}")
+    value = raw[i + 1 :]
+    return ContentLine(name=name, params=params, value=value)
+
+
+def parse(text: str) -> Component:
+    """Parse and validate a full iCalendar document.
+
+    Raises ParseError for malformed syntax (bad content lines, unbalanced
+    BEGIN/END) and ValidationError for structurally valid documents that
+    violate RFC 5545 requirements (missing VERSION/PRODID, wrong root).
+    """
+    raw_lines = unfold(text)
+
+    stack: list[Component] = []
+    root: Component | None = None
+
+    for i, raw in enumerate(raw_lines):
+        if raw == "":
+            continue
+        cl = parse_content_line(raw, i + 1)
+
+        if cl.name == "BEGIN":
+            comp = Component(name=cl.value.upper())
+            if stack:
+                stack[-1].children.append(comp)
+            elif root is None:
+                root = comp
+            else:
+                raise ValidationError(
+                    "multiple top-level components; expected exactly one VCALENDAR"
+                )
+            stack.append(comp)
+        elif cl.name == "END":
+            if not stack:
+                raise ParseError(f"line {i + 1}: END:{cl.value} without matching BEGIN")
+            top = stack.pop()
+            if top.name != cl.value.upper():
+                raise ParseError(
+                    f"line {i + 1}: expected END:{top.name}, found END:{cl.value}"
+                )
+        else:
+            if not stack:
+                raise ParseError(f"line {i + 1}: property {cl.name} outside any component")
+            stack[-1].properties.append(cl)
+
+    if stack:
+        names = ", ".join(c.name for c in stack)
+        raise ParseError(f"unterminated component(s): {names}")
+    if root is None:
+        raise ParseError("empty document: no BEGIN:VCALENDAR found")
+    if root.name != "VCALENDAR":
+        raise ValidationError(f"top-level component must be VCALENDAR, found {root.name}")
+
+    _validate_calendar(root)
+    return root
+
+
+def _validate_calendar(cal: Component) -> None:
+    if cal.get("VERSION") is None:
+        raise ValidationError("VCALENDAR is missing the required VERSION property")
+    if cal.get("PRODID") is None:
+        raise ValidationError("VCALENDAR is missing the required PRODID property")
