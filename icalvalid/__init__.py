@@ -9,6 +9,14 @@ from .parser import (
     parse,
 )
 from .printer import escape_text, fold_line, render, unescape_text
+from .values import (
+    RecurrenceRule,
+    ValueDecodeError,
+    parse_date,
+    parse_datetime,
+    parse_duration,
+    parse_recur,
+)
 
 __all__ = [
     "Component",
@@ -21,4 +29,10 @@ __all__ = [
     "escape_text",
     "unescape_text",
     "fold_line",
+    "RecurrenceRule",
+    "ValueDecodeError",
+    "parse_date",
+    "parse_datetime",
+    "parse_duration",
+    "parse_recur",
 ]

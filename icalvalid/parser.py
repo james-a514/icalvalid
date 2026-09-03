@@ -3,8 +3,9 @@
 The parser is deliberately literal: property values are kept in their
 wire form (still backslash-escaped) rather than decoded, because the
 correct decoding depends on the value's data type (TEXT, DATE-TIME, ...)
-which this module does not yet track. See printer.unescape_text for
-decoding TEXT values on demand.
+which this module does not track. See printer.unescape_text for TEXT
+values and values.py for DATE/DATE-TIME/DURATION/RECUR, both decoded
+on demand once the caller knows a value's type.
 """
 
 from __future__ import annotations

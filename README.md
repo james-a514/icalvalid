@@ -71,10 +71,29 @@ raw = event.get("SUMMARY")  # e.g. "Room A\, Building 2"
 print(unescape_text(raw))   # "Room A, Building 2"
 ```
 
+DATE, DATE-TIME, DURATION, and RECUR values decode the same way, on
+demand, once you know which property you're reading:
+
+```python
+from icalvalid import parse_date, parse_datetime, parse_duration, parse_recur
+
+parse_date("20260115")             # date(2026, 1, 15)
+parse_datetime("20260115T090000Z") # datetime(2026, 1, 15, 9, 0, tzinfo=timezone.utc)
+parse_duration("-P1DT2H30M")       # -timedelta(days=1, hours=2, minutes=30)
+
+rule = parse_recur("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR")
+rule.freq       # "WEEKLY"
+rule.interval   # 2
+rule.by_day     # [(0, "MO"), (0, "WE"), (0, "FR")]
+```
+
+A DATE-TIME with no trailing "Z" decodes to a naive `datetime`: local
+times are meant to be read against the property's `TZID` parameter,
+which isn't part of the value string itself. Malformed values raise
+`ValueDecodeError`.
+
 ## What's not here yet
 
-- No decoding of DATE, DATE-TIME, DURATION, or RECUR values into Python
-  types — those come back as raw strings.
 - No handling of the `group.` prefix on property names.
 - One `VCALENDAR` per document; concatenated multi-calendar files are
   rejected rather than split.
