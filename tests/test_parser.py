@@ -149,6 +149,36 @@ CASES: list[Case] = [
         error=p.ParseError,
     ),
     Case(
+        name="group-prefixed property name",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            "item1.X-ABLABEL:Home\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        check=lambda cal: (
+            cal.children[0].properties[0].group == "ITEM1"
+            and cal.children[0].properties[0].name == "X-ABLABEL"
+            and cal.children[0].get("X-ABLABEL") == "Home"
+        ),
+    ),
+    Case(
+        name="group prefix with no property name is rejected",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            "item1.:Home\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        error=p.ParseError,
+    ),
+    Case(
         name="bare LF line endings are accepted like CRLF",
         text=(
             "BEGIN:VCALENDAR\n"
@@ -235,6 +265,22 @@ class RenderRoundTripTests(unittest.TestCase):
         second = p.parse(rendered)
         self.assertEqual(first.children[0].get("SUMMARY"), second.children[0].get("SUMMARY"))
         self.assertEqual(second.get("VERSION"), "2.0")
+
+    def test_group_prefix_survives_a_render_cycle(self) -> None:
+        text = (
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            "item1.X-ABLABEL:Home\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        )
+        first = p.parse(text)
+        second = p.parse(render(first))
+        prop = second.children[0].properties[0]
+        self.assertEqual(prop.group, "ITEM1")
+        self.assertEqual(prop.name, "X-ABLABEL")
 
 
 if __name__ == "__main__":

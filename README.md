@@ -92,9 +92,14 @@ times are meant to be read against the property's `TZID` parameter,
 which isn't part of the value string itself. Malformed values raise
 `ValueDecodeError`.
 
+A content line may carry a `group.` prefix to tie related properties
+together, e.g. `item1.X-ABLABEL:` and `item1.X-ADR:` both describing
+the same address. The group is exposed as `ContentLine.group` and
+round-trips through `render` unchanged; it doesn't affect how
+`Component.get`/`get_all` look properties up by name.
+
 ## What's not here yet
 
-- No handling of the `group.` prefix on property names.
 - One `VCALENDAR` per document; concatenated multi-calendar files are
   rejected rather than split.
 

@@ -83,7 +83,7 @@ def _format_param_value(value: str) -> str:
 
 
 def format_content_line(cl: ContentLine) -> str:
-    parts = [cl.name]
+    parts = [f"{cl.group}.{cl.name}" if cl.group else cl.name]
     for pname, values in cl.params.items():
         rendered = ",".join(_format_param_value(v) for v in values)
         parts.append(f";{pname}={rendered}")

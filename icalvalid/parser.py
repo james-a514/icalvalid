@@ -30,6 +30,7 @@ class ContentLine:
     name: str
     params: dict[str, list[str]]
     value: str
+    group: str | None = None
 
 
 @dataclass
@@ -71,14 +72,32 @@ def unfold(text: str) -> list[str]:
 
 
 def parse_content_line(raw: str, lineno: int) -> ContentLine:
-    """Split one unfolded line into name, parameters, and raw value."""
+    """Split one unfolded line into group, name, parameters, and raw value.
+
+    A content line may be prefixed with "group." to tie related
+    properties together, e.g. two lines both starting with "item1." so
+    a consumer knows they describe the same thing. Group and name share
+    the same charset (ALPHA / DIGIT / "-"), so the first "." before any
+    ";" or ":" is the group separator.
+    """
     n = len(raw)
     i = 0
     while i < n and raw[i] not in ";:":
         i += 1
     if i == 0:
         raise ParseError(f"line {lineno}: empty property name in {raw!r}")
-    name = raw[:i].upper()
+    name_field = raw[:i]
+    group, dot, rest = name_field.partition(".")
+    if dot:
+        if not group:
+            raise ParseError(f"line {lineno}: empty group name in {raw!r}")
+        if not rest:
+            raise ParseError(f"line {lineno}: empty property name in {raw!r}")
+        group = group.upper()
+        name = rest.upper()
+    else:
+        group = None
+        name = name_field.upper()
 
     params: dict[str, list[str]] = {}
     while i < n and raw[i] == ";":
@@ -118,7 +137,7 @@ def parse_content_line(raw: str, lineno: int) -> ContentLine:
     if i >= n or raw[i] != ":":
         raise ParseError(f"line {lineno}: expected ':' after parameters in {raw!r}")
     value = raw[i + 1 :]
-    return ContentLine(name=name, params=params, value=value)
+    return ContentLine(name=name, params=params, value=value, group=group)
 
 
 def parse(text: str) -> Component:
