@@ -249,6 +249,47 @@ class FoldLineTests(unittest.TestCase):
                 self.assertEqual(unfolded, [line])
 
 
+class MultipleCalendarTests(unittest.TestCase):
+    ONE_CALENDAR = (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "PRODID:-//example//test//EN\r\n"
+        "BEGIN:VEVENT\r\n"
+        "SUMMARY:{summary}\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+
+    def test_parse_rejects_more_than_one_calendar(self) -> None:
+        text = self.ONE_CALENDAR.format(summary="First") + self.ONE_CALENDAR.format(
+            summary="Second"
+        )
+        with self.assertRaises(p.ValidationError):
+            p.parse(text)
+
+    def test_parse_all_splits_concatenated_calendars(self) -> None:
+        text = self.ONE_CALENDAR.format(summary="First") + self.ONE_CALENDAR.format(
+            summary="Second"
+        )
+        calendars = p.parse_all(text)
+        self.assertEqual(len(calendars), 2)
+        self.assertEqual(calendars[0].children[0].get("SUMMARY"), "First")
+        self.assertEqual(calendars[1].children[0].get("SUMMARY"), "Second")
+
+    def test_parse_all_still_validates_each_calendar(self) -> None:
+        broken = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n"
+        text = self.ONE_CALENDAR.format(summary="First") + broken
+        with self.assertRaises(p.ValidationError):
+            p.parse_all(text)
+
+    def test_parse_all_on_a_single_calendar_matches_parse(self) -> None:
+        text = self.ONE_CALENDAR.format(summary="Only")
+        calendars = p.parse_all(text)
+        self.assertEqual(len(calendars), 1)
+        self.assertEqual(calendars[0].children[0].get("SUMMARY"), "Only")
+        self.assertEqual(p.parse(text).children[0].get("SUMMARY"), "Only")
+
+
 class RenderRoundTripTests(unittest.TestCase):
     def test_parse_render_parse_preserves_values(self) -> None:
         text = (

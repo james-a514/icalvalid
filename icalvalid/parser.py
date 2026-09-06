@@ -140,17 +140,18 @@ def parse_content_line(raw: str, lineno: int) -> ContentLine:
     return ContentLine(name=name, params=params, value=value, group=group)
 
 
-def parse(text: str) -> Component:
-    """Parse and validate a full iCalendar document.
+def parse_all(text: str) -> list[Component]:
+    """Parse and validate one or more VCALENDAR documents from one text blob.
 
-    Raises ParseError for malformed syntax (bad content lines, unbalanced
-    BEGIN/END) and ValidationError for structurally valid documents that
-    violate RFC 5545 requirements (missing VERSION/PRODID, wrong root).
+    Most producers write a single VCALENDAR per file, but some tools
+    (mail attachments in particular) concatenate several with no
+    separator between END:VCALENDAR and the next BEGIN:VCALENDAR. Each
+    one found at the top level is parsed and validated independently.
     """
     raw_lines = unfold(text)
 
     stack: list[Component] = []
-    root: Component | None = None
+    roots: list[Component] = []
 
     for i, raw in enumerate(raw_lines):
         if raw == "":
@@ -161,12 +162,8 @@ def parse(text: str) -> Component:
             comp = Component(name=cl.value.upper())
             if stack:
                 stack[-1].children.append(comp)
-            elif root is None:
-                root = comp
             else:
-                raise ValidationError(
-                    "multiple top-level components; expected exactly one VCALENDAR"
-                )
+                roots.append(comp)
             stack.append(comp)
         elif cl.name == "END":
             if not stack:
@@ -184,13 +181,32 @@ def parse(text: str) -> Component:
     if stack:
         names = ", ".join(c.name for c in stack)
         raise ParseError(f"unterminated component(s): {names}")
-    if root is None:
+    if not roots:
         raise ParseError("empty document: no BEGIN:VCALENDAR found")
-    if root.name != "VCALENDAR":
-        raise ValidationError(f"top-level component must be VCALENDAR, found {root.name}")
 
-    _validate_calendar(root)
-    return root
+    for root in roots:
+        if root.name != "VCALENDAR":
+            raise ValidationError(f"top-level component must be VCALENDAR, found {root.name}")
+        _validate_calendar(root)
+
+    return roots
+
+
+def parse(text: str) -> Component:
+    """Parse and validate a single iCalendar document.
+
+    Raises ParseError for malformed syntax (bad content lines, unbalanced
+    BEGIN/END) and ValidationError for structurally valid documents that
+    violate RFC 5545 requirements (missing VERSION/PRODID, wrong root).
+    Also raises ValidationError if the text holds more than one top-level
+    VCALENDAR; call parse_all directly to handle that case.
+    """
+    roots = parse_all(text)
+    if len(roots) > 1:
+        raise ValidationError(
+            f"expected exactly one VCALENDAR, found {len(roots)}; use parse_all instead"
+        )
+    return roots[0]
 
 
 def _validate_calendar(cal: Component) -> None:

@@ -98,10 +98,18 @@ the same address. The group is exposed as `ContentLine.group` and
 round-trips through `render` unchanged; it doesn't affect how
 `Component.get`/`get_all` look properties up by name.
 
-## What's not here yet
+`parse` expects exactly one `VCALENDAR` and raises `ValidationError`
+otherwise. Some tools (mail attachments, some CalDAV exports) write
+several `VCALENDAR`s back to back in one file with no separator; use
+`parse_all` for those, which returns a list with one entry per
+calendar:
 
-- One `VCALENDAR` per document; concatenated multi-calendar files are
-  rejected rather than split.
+```python
+from icalvalid import parse_all
+
+calendars = parse_all(two_calendars_concatenated)
+len(calendars)  # 2
+```
 
 ## Development
 

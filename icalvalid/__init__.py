@@ -7,6 +7,7 @@ from .parser import (
     ParseError,
     ValidationError,
     parse,
+    parse_all,
 )
 from .printer import escape_text, fold_line, render, unescape_text
 from .values import (
@@ -25,6 +26,7 @@ __all__ = [
     "ParseError",
     "ValidationError",
     "parse",
+    "parse_all",
     "render",
     "escape_text",
     "unescape_text",
