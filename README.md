@@ -111,6 +111,23 @@ calendars = parse_all(two_calendars_concatenated)
 len(calendars)  # 2
 ```
 
+## Command line
+
+Installing the package puts an `icalvalid` command on your path (it also
+works unstalled as `python -m icalvalid`):
+
+```
+icalvalid validate calendar.ics
+calendar.ics: ok (1 calendar)
+
+icalvalid print calendar.ics -o normalized.ics
+```
+
+Either subcommand accepts `-` in place of a file path to read from stdin.
+`validate` exits 1 and prints the parse or validation error to stderr if
+the file doesn't check out; `print` does the same instead of writing
+anything to its output.
+
 ## Development
 
 No build step, no dependencies. Run the tests with:

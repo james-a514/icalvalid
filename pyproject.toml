@@ -7,6 +7,9 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "james-a514" }]
 
+[project.scripts]
+icalvalid = "icalvalid.cli:main"
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
