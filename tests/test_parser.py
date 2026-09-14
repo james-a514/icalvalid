@@ -55,6 +55,9 @@ CASES: list[Case] = [
             "VERSION:2.0\r\n"
             "PRODID:-//example//test//EN\r\n"
             "BEGIN:VEVENT\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
             "SUMMARY:This is a long summary that wraps across\r\n"
             "  a folded continuation line\r\n"
             "END:VEVENT\r\n"
@@ -70,6 +73,9 @@ CASES: list[Case] = [
             "VERSION:2.0\r\n"
             "PRODID:-//example//test//EN\r\n"
             "BEGIN:VEVENT\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
             "DESCRIPTION:First part\r\n"
             "\t continues here\r\n"
             "END:VEVENT\r\n"
@@ -87,6 +93,9 @@ CASES: list[Case] = [
             "BEGIN:VEVENT\r\n"
             'ATTENDEE;CN="Doe, John";DELEGATED-FROM="mailto:a@example.com"'
             ":mailto:john@example.com\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
             "END:VEVENT\r\n"
             "END:VCALENDAR\r\n"
         ),
@@ -106,6 +115,9 @@ CASES: list[Case] = [
             "BEGIN:VEVENT\r\n"
             'ATTENDEE;MEMBER="mailto:a@example.com","mailto:b@example.com"'
             ":mailto:c@example.com\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
             "END:VEVENT\r\n"
             "END:VCALENDAR\r\n"
         ),
@@ -156,6 +168,9 @@ CASES: list[Case] = [
             "PRODID:-//example//test//EN\r\n"
             "BEGIN:VEVENT\r\n"
             "item1.X-ABLABEL:Home\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
             "END:VEVENT\r\n"
             "END:VCALENDAR\r\n"
         ),
@@ -177,6 +192,158 @@ CASES: list[Case] = [
             "END:VCALENDAR\r\n"
         ),
         error=p.ParseError,
+    ),
+    Case(
+        name="VEVENT missing UID fails validation",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        error=p.ValidationError,
+    ),
+    Case(
+        name="VEVENT missing DTSTAMP fails validation",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTART:20260115T090000Z\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        error=p.ValidationError,
+    ),
+    Case(
+        name="VEVENT missing DTSTART fails validation when calendar has no METHOD",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        error=p.ValidationError,
+    ),
+    Case(
+        name="VEVENT missing DTSTART is fine when calendar has METHOD",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "METHOD:PUBLISH\r\n"
+            "BEGIN:VEVENT\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        check=lambda cal: cal.children[0].get("UID") == "event-1@example.com",
+    ),
+    Case(
+        name="fully populated VEVENT passes validation",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VEVENT\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        check=lambda cal: cal.children[0].get("DTSTART") == "20260115T090000Z",
+    ),
+    Case(
+        name="VTODO missing UID fails validation",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VTODO\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "END:VTODO\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        error=p.ValidationError,
+    ),
+    Case(
+        name="VTODO missing DTSTAMP fails validation",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VTODO\r\n"
+            "UID:todo-1@example.com\r\n"
+            "END:VTODO\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        error=p.ValidationError,
+    ),
+    Case(
+        name="VTODO with no DTSTART is fine",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VTODO\r\n"
+            "UID:todo-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "END:VTODO\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        check=lambda cal: cal.children[0].get("UID") == "todo-1@example.com",
+    ),
+    Case(
+        name="VJOURNAL missing UID fails validation",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VJOURNAL\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "END:VJOURNAL\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        error=p.ValidationError,
+    ),
+    Case(
+        name="VJOURNAL missing DTSTAMP fails validation",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VJOURNAL\r\n"
+            "UID:journal-1@example.com\r\n"
+            "END:VJOURNAL\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        error=p.ValidationError,
+    ),
+    Case(
+        name="fully populated VJOURNAL passes validation",
+        text=(
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//example//test//EN\r\n"
+            "BEGIN:VJOURNAL\r\n"
+            "UID:journal-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "END:VJOURNAL\r\n"
+            "END:VCALENDAR\r\n"
+        ),
+        check=lambda cal: cal.children[0].get("UID") == "journal-1@example.com",
     ),
     Case(
         name="bare LF line endings are accepted like CRLF",
@@ -255,6 +422,9 @@ class MultipleCalendarTests(unittest.TestCase):
         "VERSION:2.0\r\n"
         "PRODID:-//example//test//EN\r\n"
         "BEGIN:VEVENT\r\n"
+        "UID:event-1@example.com\r\n"
+        "DTSTAMP:20260101T000000Z\r\n"
+        "DTSTART:20260115T090000Z\r\n"
         "SUMMARY:{summary}\r\n"
         "END:VEVENT\r\n"
         "END:VCALENDAR\r\n"
@@ -297,6 +467,9 @@ class RenderRoundTripTests(unittest.TestCase):
             "VERSION:2.0\r\n"
             "PRODID:-//example//test//EN\r\n"
             "BEGIN:VEVENT\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
             "SUMMARY:" + ("a very long summary line " * 6) + "\r\n"
             "END:VEVENT\r\n"
             "END:VCALENDAR\r\n"
@@ -314,6 +487,9 @@ class RenderRoundTripTests(unittest.TestCase):
             "PRODID:-//example//test//EN\r\n"
             "BEGIN:VEVENT\r\n"
             "item1.X-ABLABEL:Home\r\n"
+            "UID:event-1@example.com\r\n"
+            "DTSTAMP:20260101T000000Z\r\n"
+            "DTSTART:20260115T090000Z\r\n"
             "END:VEVENT\r\n"
             "END:VCALENDAR\r\n"
         )

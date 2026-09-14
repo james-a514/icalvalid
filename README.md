@@ -15,7 +15,9 @@ noticing that a file is missing a property RFC 5545 requires.
 This library parses an ICS document into a plain tree of components and
 properties, checks it against the handful of structural rules that make
 a file valid (balanced `BEGIN`/`END`, a `VCALENDAR` root, required
-`VERSION`/`PRODID`), and can pretty-print the tree back out with
+`VERSION`/`PRODID`, required `UID`/`DTSTAMP` on `VEVENT`/`VTODO`/
+`VJOURNAL`, and required `DTSTART` on a `VEVENT` unless the calendar
+has a `METHOD`), and can pretty-print the tree back out with
 consistent folding and quoting. That second part is useful on its own:
 running two calendars exported from different tools through the printer
 gives you a diff you can actually read, instead of one dominated by
@@ -31,6 +33,8 @@ ics_text = (
     "VERSION:2.0\r\n"
     "PRODID:-//example//test//EN\r\n"
     "BEGIN:VEVENT\r\n"
+    "UID:event-1@example.com\r\n"
+    "DTSTAMP:20260101T000000Z\r\n"
     "SUMMARY:Team sync\r\n"
     "DTSTART:20260115T090000Z\r\n"
     "END:VEVENT\r\n"

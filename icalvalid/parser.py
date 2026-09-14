@@ -214,3 +214,32 @@ def _validate_calendar(cal: Component) -> None:
         raise ValidationError("VCALENDAR is missing the required VERSION property")
     if cal.get("PRODID") is None:
         raise ValidationError("VCALENDAR is missing the required PRODID property")
+
+    # DTSTART is only required on a VEVENT when the calendar has no METHOD
+    # property (RFC 5545 3.6.1): a METHOD means the event is part of a
+    # scheduling message, where a missing DTSTART can be meaningful (e.g.
+    # a REQUEST that only updates other properties of an existing event).
+    has_method = cal.get("METHOD") is not None
+    for child in cal.children:
+        if child.name == "VEVENT":
+            _validate_event(child, has_method)
+        elif child.name == "VTODO":
+            _validate_uid_and_dtstamp(child, "VTODO")
+        elif child.name == "VJOURNAL":
+            _validate_uid_and_dtstamp(child, "VJOURNAL")
+
+
+def _validate_uid_and_dtstamp(comp: Component, kind: str) -> None:
+    if comp.get("UID") is None:
+        raise ValidationError(f"{kind} is missing the required UID property")
+    if comp.get("DTSTAMP") is None:
+        raise ValidationError(f"{kind} is missing the required DTSTAMP property")
+
+
+def _validate_event(comp: Component, has_method: bool) -> None:
+    _validate_uid_and_dtstamp(comp, "VEVENT")
+    if not has_method and comp.get("DTSTART") is None:
+        raise ValidationError(
+            "VEVENT is missing the required DTSTART property "
+            "(required because VCALENDAR has no METHOD)"
+        )
